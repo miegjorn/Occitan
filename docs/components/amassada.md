@@ -215,6 +215,9 @@ initial_participants:
 - `domain`: the context body drawn from Fondament (primitive) or Farga (project facet). Passed verbatim as `domain_context` in `build_system_prompt()`.
 - `model`: optional L2 model override. The Moderator can issue a further L3 override mid-session via `[MODEL: model-id for: agent-id]`.
 - `authority: binding`: marks the human participant as authoritative; the engine never allows agent or Moderator actions to override confirmed human decisions.
+- `modifiers`: optional list of behavioural modifiers. Currently the only recognised value is `deconstructive`, which injects the SessionGraph frontier context into the system prompt preamble so the participant receives graph-state awareness before the main domain context.
+- `endpoint`: optional HTTP base URL for an external agent pod. When set, turns for this participant are dispatched via `POST {endpoint}/turn` (the `TurnHttpRequest` / `TurnHttpResponse` protocol) instead of calling Anthropic directly. Used for Guilhem and other Occitan agents that own their own MCP tool access.
+- `thinking_budget`: optional token budget for extended thinking (Anthropic `thinking` parameter). When set to a positive integer, the dispatch layer enables `interleaved-thinking-2025-05-14` and adds the budget to the API request. `max_tokens` is clamped upward to at least `thinking_budget + 1024`.
 
 A participant with `persona: human` is excluded from the turn-execution loop (`is_human() -> bool`). The Moderator is identified by `persona == "moderator"`.
 
@@ -359,6 +362,26 @@ Governance deliberation on a proposed Fondament archetype or cross-project stand
 - Budget: 15,000 tokens (11,000 / 3,000 / 1,000)
 - Rounds: 3 – 6, context window 20, up to 2 consultation turns
 - Output sections: Proposed Archetype Change, Risk Assessment, Agent Votes, Impact Analysis (optional), Recommendation
+
+### `org-session.yaml` — mode: auto
+
+Default canvas for Charradissa-routed Matrix conversations with the Guilhem org agent. Used when a room is registered under `[[agents.project]]` in `charradissa.toml` and no explicit canvas is specified. Single participant (Guilhem) with the deconstructive modifier enabled.
+
+### `dream-session.yaml` — mode: auto (scheduled)
+
+Nightly consolidation canvas. Canvases can be **interactive** (triggered by a user message routed through Charradissa) or **scheduled** (triggered by a CronJob POSTing directly to the agent endpoint). Dream is scheduled: the `guilhem-dream` CronJob fires at 03:00 UTC daily and POSTs to `POST /trigger/dream` on the Guilhem pod.
+
+Three-phase protocol:
+1. **Gather** — read Farga signals from the past 24h (`search_signals since=yesterday`) + fetch GitHub commits, open issues, and PRs across all 8 repos
+2. **Synthesize** — identify cross-repo implications, architectural drift, pattern signals, and stack trajectory
+3. **Act** — create 3–8 GitHub issues for actionable improvement opportunities (dedup check before each); write a `source: dream` signal to Farga
+
+- Participants: `guilhem` (fondament/guilhem) with `deconstructive` modifier, `thinking_budget: 8000`
+- Budget: 200,000 tokens, 1 round
+- Model: `claude-sonnet-4-6` (synthesis-grade; configurable via `dream.model` in guilhem Helm values)
+- Output: GitHub issues in appropriate repos + Farga dream signal
+
+This canvas is the target architecture. Currently the CronJob drives the dream via the Claude CLI directly; migrating to a full Amassada-mediated session (with budget tracking and session graph) is the next step.
 
 ---
 
@@ -644,6 +667,45 @@ Valid `kind` values: `btw`, `call`, `approve`, `reject`, `modify`. Returns 202 A
 
 Accepts an externally-produced `SessionEvent` (JSON body) and publishes it onto the server's broadcast channel, fanning it out to every connected `/ws` subscriber. This is how external processes (Caissa, cursor capture, etc.) inject events into the bus without going through the session engine. Returns 202 Accepted whether or not there are active subscribers.
 
+### `POST /sessions/{id}/message`
+
+The primary production entry point. Called by Charradissa when a Matrix message arrives in a room that Amassada manages. Creates a session handle if one does not already exist for `{id}`, then dispatches a single agent turn and returns the response synchronously.
+
+**Request body (JSON):**
+
+```json
+{
+  "content": "What's the state of the Guilhem rollout?",
+  "sender": "@pierre-luc:occitan.local",
+  "room_id": "!abc123:occitan.local"
+}
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `content` | yes | The message text to deliver as the user turn |
+| `sender` | yes | Matrix user ID of the sender; prepended to the context as `[sender]: content` |
+| `room_id` | no | Matrix room ID. When provided, Amassada looks up the project registry to resolve the Fondament persona and MCP scopes for the room (multi-tenant path). When absent, falls back to the canvas participant's `domain` field (org session / single-tenant path). |
+
+**Behaviour:**
+
+1. Loads the canvas library from `AMASSADA_CANVAS_DIR`; defaults to the `org-session` canvas for new sessions.
+2. Finds the first non-human canvas participant with an `endpoint` set.
+3. Resolves the domain context from Fondament (DefinitionTree → markdown scan → generic descriptor fallback).
+4. Assembles the system prompt via `build_system_prompt()` and POSTs a `TurnHttpRequest` to the participant's `endpoint`.
+5. Returns the agent's response text synchronously.
+
+**Response (JSON, 200 OK):**
+
+```json
+{
+  "text": "The Guilhem rollout is at 80% — the SYNAPSE_ADMIN_TOKEN wiring is the remaining blocker.",
+  "session_id": "<the session id from the path>"
+}
+```
+
+Error responses use the same body shape with a non-2xx status code and a human-readable `text` field describing the failure.
+
 ### `GET /ws`
 
 WebSocket upgrade endpoint. On connect, the handler subscribes to the server's `broadcast::Sender<SessionEvent>` (capacity 256) and forwards each event as a JSON text frame. The connection closes when a terminal event (`SessionCompleted` or `SessionFailed`) is received, the client disconnects, or the broadcast channel itself closes. A lagged subscriber (slow consumer falling behind the channel buffer) logs a warning and continues — it does not panic or drop the connection.
@@ -659,6 +721,9 @@ All configuration is via environment variables. No configuration file.
 | `AMASSADA_PORT` | `7700` | Port for `amassada-server` to listen on |
 | `AMASSADA_CANVAS_DIR` | `canvases/stdlib` | Directory scanned for canvas YAML files at startup |
 | `ANTHROPIC_API_KEY` | — | Required. Passed as the `x-api-key` header on every Anthropic API call. The server fails to dispatch any turn if this is unset. |
+| `FONDAMENT_PATH` | `/fondament` | Root of the Fondament definitions checkout. Critical for persona resolution — `resolve_persona()` looks for `definitions/` under this path. All canvas participants with a `domain` field depend on this being set correctly. |
+| `FARGA_URL` | — | Optional. Base URL of the Farga persistence service (e.g. `http://farga.agents.svc.cluster.local:8090`). When set, session graphs are loaded on session resume and saved on session close. Omitting this variable disables graph persistence; sessions always start with a fresh graph. |
+| `AMASSADA_PROJECTS_PATH` | `config/projects.toml` | Path to the project registry TOML file. The registry maps Matrix room IDs to Fondament persona IDs and MCP scope lists, enabling multi-tenant dispatch from a single Amassada instance. |
 
 ---
 

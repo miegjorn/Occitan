@@ -79,16 +79,17 @@ fondament/
 │   │   └── data/
 │   │       └── db/
 │   │           └── mysql.yaml
-│   ├── practices/              # vertical compositions of disciplines
 │   ├── roles/                  # named compositions: discipline/practice + stance + cognitive_load
 │   │   └── security-sre.yaml
 │   ├── stances/                # cognitive postures
 │   │   └── adversarial.yaml
 │   ├── tools/                  # tool connection specs
-│   ├── domains/                # kind: domain — component/system identity context (not yet
-│   │                           # documented in Definition Kinds below; see deferred items)
-│   └── fondament/              # kind: role — pre-built named agent roster (developer, guilhem,
-│                                # app-architect, ...); not yet documented in Definition Kinds below
+│   ├── domains/                # kind: domain — component/system identity context
+│   └── fondament/              # pre-built agent roster (developer, guilhem, app-architect, ...)
+│       ├── domains/            # kind: project-agent — template definitions for per-project agents
+│       │   └── project-agent.yaml
+│       └── projects/           # kind: project-composition — concrete instantiated project agents
+│           └── example-agent.yaml
 └── packages/                   # Cor plugin packages (installable via `cor install`)
     └── deconstructive/
         ├── plugin.toml         # Cor manifest (id, kind, compatibility, artifact, install)
@@ -105,6 +106,7 @@ Fondament is a Cargo workspace with two crates:
 |---|---|
 | `fondament-core` | Library crate. Parses definitions, resolves agents, runs lint, exposes the `Fondament` struct. Consumed by Amassada (dispatch daemon) and Charradissa (canvas runtime). |
 | `fondament-cli` | Binary crate. Thin CLI wrapper over `fondament-core` for local developer workflows: linting, resolving, scaffolding, and graphing. |
+| `fondament-server` | Binary crate. Optional REST service exposing the definition tree and resolver over HTTP. See [fondament-server](#fondament-server). |
 
 The library's public entry point is the `Fondament` struct in `fondament.rs`:
 
@@ -165,7 +167,13 @@ pub struct DefinitionFile {
     // skills: NOT a field here yet — see note above.
     pub stance: Option<String>,
     pub cognitive_load: Option<String>,
-    pub modifier: bool,   // default false; true for disciplines that modify assembly behaviour
+    pub modifier: bool,        // default false; true for disciplines that modify assembly behaviour
+    pub component: Option<String>, // component-agent only — names the component this agent owns
+    // project-composition fields — only present when kind == "project-composition"
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub model: Option<String>, // composition model (distinct from default_model)
+    pub parts: Vec<serde_yaml::Value>, // ordered list of context sources (inline, farga, ...)
 }
 ```
 
@@ -297,6 +305,77 @@ context: |
 ```
 
 Built-in stances in the tree: `builder`, `adversarial`, `moderator`, `realist`, `dreamer`.
+
+### Domain
+
+Describes what a component or system *is* — its identity, principles, and place in the stack. Domain definitions are context entries for Caissa, not documentation of current state (that lives in Farga). They carry a `repo:` field naming the owning repository and optionally a `default_facet:`.
+
+```yaml
+id: domain/fondament
+kind: domain
+repo: Fondament
+default_facet: architect
+context: |
+  Fondament is the agent identity library of the Occitan stack. ...
+```
+
+### Component-Agent
+
+A named agent tied to a specific component (service, library, or subsystem). Component-agents carry a `component:` field that identifies which system they own. They are authoritative voices for their component — the agent to dispatch when work concerns that component specifically.
+
+```yaml
+id: fondament/farga-agent
+kind: component-agent
+component: farga
+default_model: claude-sonnet-4-6
+context: |
+  You are the Farga component agent — the voice and authority of Farga ...
+tools:
+  always_on: []
+  jit: []
+```
+
+Listed via `GET /component-agents` on `fondament-server`.
+
+### Project-Agent
+
+A template definition for project-scoped agents. Unlike component-agents (which are authoritative for a component), project-agents are instantiated per-project — each project gets its own instance carrying project-specific goals, blockers, and context fetched live from Farga. The template declares tools and operating principles; the instance fills in the project.
+
+```yaml
+id: fondament/domains/project-agent
+kind: project-agent
+default_model: claude-opus-4-8
+context: |
+  You are a project agent within the Occitan stack. ...
+tools:
+  always_on:
+    - id: farga-read-context
+      kind: mcp
+      server: farga
+      tool: read_context
+```
+
+### Project-Composition
+
+A concrete instantiation of a project agent. Uses a `parts:` list to assemble context from multiple sources (`inline` for static text, `farga` to pull live project context at spawn time). The `model:` field sets the composition model and is validated separately from `default_model`. The `name:` and `description:` fields are human-readable metadata.
+
+To enable the deconstructive modifier, add it via the `CompositionAddress` at dispatch time (e.g. `fondament/projects/example-agent+deconstructive`) — it is not controlled by a field in the definition file.
+
+```yaml
+id: fondament/projects/example-agent
+kind: project-composition
+name: "example-agent"
+description: "Project agent for Example"
+model: claude-sonnet-4-6
+parts:
+  - role: "development assistant"
+    source: inline
+    content: |
+      You are the Example project agent.
+  - role: context
+    source: farga
+    project: "example"
+```
 
 ---
 
@@ -720,9 +799,42 @@ cargo test --test address_tests
 
 ---
 
+## fondament-server
+
+`fondament-server` is an optional REST service that exposes the definition tree and the resolver over HTTP. It is experimental and early — the routes below are functional but the server is not yet part of the standard stack deployment.
+
+**Default port:** `7800`
+
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `FONDAMENT_DEFINITIONS_PATH` | `definitions` | Path to the definitions directory to load on startup. |
+| `FARGA_URL` | `http://farga:7500` | Base URL of the Farga service, used by `HttpFargaReader` during resolution. |
+| `FONDAMENT_PORT` | `7800` | TCP port to listen on. |
+
+### Routes
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Returns `"ok"`. Liveness probe. |
+| `GET` | `/component-agents` | Lists all definitions with `kind: component-agent` as a JSON array of `{id, component}` objects. |
+| `GET` | `/resolve/*id` | Parses `*id` as a `CompositionAddress` and returns the fully resolved system prompt as plain text. Returns `400` on parse error, `404` if resolution fails or the prompt is empty. |
+
+### Example
+
+```
+curl http://fondament:7800/health
+curl http://fondament:7800/component-agents
+curl http://fondament:7800/resolve/fondament/farga-agent
+curl http://fondament:7800/resolve/fondament/app-architect+deconstructive
+```
+
+---
+
 ## Out of Scope (v1)
 
-- `fondament-server` — optional REST service for multi-org shared primitive registries
+- `fondament-server` production hardening — see [fondament-server](#fondament-server) above; the service exists and runs but is not yet deployed in the standard stack
 - UI for browsing the definition tree
 - Automated conflict resolution (human-in-the-loop only via sweep surfacing to OrgAgent)
 - Definition versioning beyond git history
