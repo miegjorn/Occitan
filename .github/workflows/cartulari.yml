@@ -39,7 +39,9 @@ jobs:
 
       - name: Open PR if docs changed
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Must use CARTULARI_TOKEN (PAT) -- GITHUB_TOKEN cannot create PRs
+          # when the miegjorn org has workflow write permissions disabled.
+          GH_TOKEN: ${{ secrets.CARTULARI_TOKEN }}
         run: |
           if git diff --quiet docs/; then
             echo "No documentation changes -- nothing to commit."
