@@ -1,0 +1,39 @@
+# Occitan Stack — Charradissa (Matrix ↔ agent bridge)
+#
+# Charradissa is the bridge between the Matrix homeserver and the agent
+# layer. It listens to Matrix room events via the Application Service API
+# and routes them to the appropriate component agent. Written in Rust.
+#
+# In this public manifest, the image points to the mock echo-agent.
+# Override with the real image in your values-production.yaml.
+#
+# Source: https://github.com/miegjorn/Charradissa
+#
+# Requires:
+#   agent-secrets / matrix-as-token
+#   agent-secrets / matrix-hs-token
+#
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: charradissa
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: occitan
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/miegjorn/Occitan
+    targetRevision: HEAD
+    path: deploy/manifests/charradissa
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: occitan-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

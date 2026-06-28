@@ -1,0 +1,74 @@
+# Farga — durable memory layer (Rust)
+# Mock image used by default. Override image in values-production.yaml.
+# Source: https://github.com/miegjorn/Farga
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: farga
+  namespace: occitan-system
+  labels:
+    app: farga
+    app.kubernetes.io/part-of: occitan
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: farga
+  template:
+    metadata:
+      labels:
+        app: farga
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: farga
+          image: ghcr.io/miegjorn/echo-agent:latest  # mock — override for production
+          ports:
+            - containerPort: 8080
+          env:
+            - name: AGENT_NAME
+              value: "farga"
+            - name: FARGA_PORT
+              value: "8080"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: farga-db-credentials
+                  key: database-url
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: farga
+  namespace: occitan-system
+  labels:
+    app: farga
+    app.kubernetes.io/part-of: occitan
+spec:
+  selector:
+    app: farga
+  ports:
+    - port: 80
+      targetPort: 8080

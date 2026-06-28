@@ -1,0 +1,34 @@
+# Occitan Stack — Gardian (secret gateway)
+#
+# Gardian is the secret gateway: it validates tokens and resolves credentials
+# for other components. Written in Rust.
+#
+# In this public manifest, the image points to the mock echo-agent.
+# Override with the real image in your values-production.yaml.
+#
+# Source: https://github.com/miegjorn/Gardian
+#
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gardian
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: occitan
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/miegjorn/Occitan
+    targetRevision: HEAD
+    path: deploy/manifests/gardian
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: occitan-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

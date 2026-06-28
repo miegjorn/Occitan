@@ -1,0 +1,71 @@
+# Amassada — context assembler (Rust)
+# Mock image used by default. Override image in values-production.yaml.
+# Source: https://github.com/miegjorn/Amassada
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amassada
+  namespace: occitan-system
+  labels:
+    app: amassada
+    app.kubernetes.io/part-of: occitan
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: amassada
+  template:
+    metadata:
+      labels:
+        app: amassada
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: amassada
+          image: ghcr.io/miegjorn/echo-agent:latest  # mock — override for production
+          ports:
+            - containerPort: 8080
+          env:
+            - name: AGENT_NAME
+              value: "amassada"
+            - name: AMASSADA_PORT
+              value: "8080"
+            - name: FARGA_URL
+              value: "http://farga.occitan-system.svc.cluster.local"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: amassada
+  namespace: occitan-system
+  labels:
+    app: amassada
+    app.kubernetes.io/part-of: occitan
+spec:
+  selector:
+    app: amassada
+  ports:
+    - port: 80
+      targetPort: 8080

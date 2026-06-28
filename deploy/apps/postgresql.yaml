@@ -1,0 +1,58 @@
+# Occitan Stack — PostgreSQL
+#
+# Shared PostgreSQL instance for all components that require a database.
+# Uses the Bitnami chart: bitnami/postgresql
+#
+# Databases provisioned:
+#   synapse    — Matrix homeserver state
+#   farga      — Durable memory layer (signals, artifacts, context)
+#   gardian    — Secret gateway audit log
+#
+# Credentials are injected via Kubernetes secrets — never inline here.
+#
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgresql
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: occitan
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    chart: postgresql
+    targetRevision: "15.5.0"
+    helm:
+      values: |
+        auth:
+          existingSecret: postgresql-credentials
+          secretKeys:
+            adminPasswordKey: postgres-password
+        primary:
+          initdb:
+            scripts:
+              init.sql: |
+                CREATE DATABASE synapse;
+                CREATE DATABASE farga;
+                CREATE DATABASE gardian;
+                CREATE USER synapse WITH PASSWORD '$(SYNAPSE_DB_PASSWORD)';
+                CREATE USER farga   WITH PASSWORD '$(FARGA_DB_PASSWORD)';
+                CREATE USER gardian WITH PASSWORD '$(GARDIAN_DB_PASSWORD)';
+                GRANT ALL PRIVILEGES ON DATABASE synapse  TO synapse;
+                GRANT ALL PRIVILEGES ON DATABASE farga    TO farga;
+                GRANT ALL PRIVILEGES ON DATABASE gardian  TO gardian;
+        persistence:
+          enabled: true
+          size: 8Gi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: occitan-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,55 @@
+# Occitan Stack — Synapse (Matrix homeserver)
+#
+# Uses the community Helm chart: ananace/synapse
+# https://gitlab.com/ananace/charts
+#
+# server_name is driven by MATRIX_DOMAIN — never hardcoded here.
+# TLS termination is handled at the ingress layer (not in this manifest).
+#
+# Secrets required (create manually — see bootstrap/README.md):
+#   synapse-secrets / registration-shared-secret
+#
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: synapse
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: occitan
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://ananace.gitlab.io/charts
+    chart: matrix-synapse
+    targetRevision: "3.9.11"
+    helm:
+      values: |
+        serverName: "${MATRIX_DOMAIN}"  # Set MATRIX_DOMAIN in your values-production.yaml
+        postgresql:
+          enabled: false
+          # Point to the shared PostgreSQL instance (see postgresql.yaml)
+          host: postgresql.occitan-system.svc.cluster.local
+          database: synapse
+          username: synapse
+          passwordSecret:
+            name: synapse-db-credentials
+            key: password
+        signingkey:
+          existingSecret: synapse-signing-key
+        config:
+          registrationSharedSecret:
+            existingSecret: synapse-secrets
+            existingSecretKey: registration-shared-secret
+        workers:
+          enabled: false  # Enable in production for scale
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: occitan-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,34 @@
+# Occitan Stack — Cor (core services)
+#
+# Cor provides shared core services and primitives used by other components.
+# Written in Rust.
+#
+# In this public manifest, the image points to the mock echo-agent.
+# Override with the real image in your values-production.yaml.
+#
+# Source: https://github.com/miegjorn/Cor
+#
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cor
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: occitan
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/miegjorn/Occitan
+    targetRevision: HEAD
+    path: deploy/manifests/cor
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: occitan-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,85 @@
+# Charradissa — Matrix ↔ agent bridge (Rust)
+# Mock image used by default. Override image in values-production.yaml.
+# Source: https://github.com/miegjorn/Charradissa
+#
+# Charradissa is registered with Synapse as a Matrix Application Service.
+# It receives all Matrix room events and routes them to the correct agent
+# based on room membership.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: charradissa
+  namespace: occitan-system
+  labels:
+    app: charradissa
+    app.kubernetes.io/part-of: occitan
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: charradissa
+  template:
+    metadata:
+      labels:
+        app: charradissa
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: charradissa
+          image: ghcr.io/miegjorn/echo-agent:latest  # mock — override for production
+          ports:
+            - containerPort: 8080
+          env:
+            - name: AGENT_NAME
+              value: "charradissa"
+            - name: CHARRADISSA_PORT
+              value: "8080"
+            - name: MATRIX_HOMESERVER_URL
+              value: "http://matrix-synapse.occitan-system.svc.cluster.local:8008"
+            - name: MATRIX_AS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: agent-secrets
+                  key: matrix-as-token
+            - name: MATRIX_HS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: agent-secrets
+                  key: matrix-hs-token
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "300m"
+              memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: charradissa
+  namespace: occitan-system
+  labels:
+    app: charradissa
+    app.kubernetes.io/part-of: occitan
+spec:
+  selector:
+    app: charradissa
+  ports:
+    - port: 80
+      targetPort: 8080
