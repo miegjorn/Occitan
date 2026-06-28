@@ -127,6 +127,7 @@ A `FondamentProposal` is a candidate for promotion to a Fondament primitive, ide
 | `Pattern` | Optimizer agent | Cross-project pattern identified by sweep |
 | `FondamentProposal` | Optimizer agent | Candidate for promotion to a Fondament primitive |
 | `AuditEntry` | Gardian | Credential audit entry (long-term retention) |
+| `GovernanceContribution` | Sessions / agents | Cross-project pattern submitted for governance assessment; carries narrative, lessons, reversibility, and impact scope |
 | `KV` | KV API | Mutable, TTL-aware key/value entry for inter-instance coordination (see [KV store endpoints](#kv-store-endpoints)) |
 
 **Edge kinds:**
@@ -162,9 +163,11 @@ farga/
 │       ├── state.rs            # AppState (SqlitePool + DocsTree)
 │       ├── db.rs               # insert_node, get_node, mark_stale, insert_edge, get_subgraph
 │       ├── docs.rs             # DocsTree file tree reader
+│       ├── librarian.rs        # background task: AI-assisted governance assessment (polls every 60s)
 │       ├── optimizer.rs        # optimizer agent stubs (v0.2.0)
 │       └── routes/
 │           ├── mod.rs          # axum Router wiring
+│           ├── audit.rs        # POST/GET /audit
 │           ├── context.rs      # GET /context/…
 │           ├── signals.rs      # POST/GET /signals
 │           ├── artifacts.rs    # POST/GET /artifacts
@@ -273,11 +276,23 @@ Reads the `docs/` file tree synchronously:
 | `insert_edge(pool, edge)` | Insert an edge (INSERT OR IGNORE on duplicate PK) |
 | `get_subgraph(pool, root_id, depth)` | BFS from root up to `depth` hops; returns `(Vec<Node>, Vec<Edge>)` |
 
+### Librarian (`librarian.rs`)
+
+The librarian is a background task spawned at server startup (`tokio::spawn(run_librarian(pool))`). It polls the `governance_assessments` table every **60 seconds** for rows with `status = 'pending'` and, for each, calls the **Anthropic API** (`claude-sonnet-4-6`) to assess the associated `GovernanceContribution`. The LLM response — a `LibrarianVerdict` carrying `reversibility`, `impact`, `routing`, and `notes` — is written back to the assessment row, setting `status = 'assessed'`.
+
+Requires the `ANTHROPIC_API_KEY` environment variable. If the key is absent the assessment cycle logs an error and continues; the server starts normally but no automatic assessments are produced.
+
 ---
 
 ## REST API
 
 The server listens on `0.0.0.0:<FARGA_PORT>` (default `7500`).
+
+### Health
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Returns `ok` (plain text). Used by load balancers and readiness probes. |
 
 ### Context endpoints
 
@@ -353,6 +368,36 @@ Returns `201 Created`. The artifact is stored as an `Artifact` node in the graph
 | `GET` | `/governance/assessments/:node_id` | Fetch the governance assessment for a node |
 
 Backed by the `governance_assessments` table (migration `003_governance.sql`, see [Database Schema](#database-schema)).
+
+### Audit endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/audit` | Write an audit entry (credential use record). Returns `201 Created`. |
+| `GET` | `/audit` | List audit entries, optionally filtered by agent. Returns a JSON array. |
+
+**POST /audit** — request body (`AuditEntry` from `farga_core::writer`):
+
+```json
+{
+  "timestamp": "2026-06-28T00:00:00Z",
+  "agent": "guilhem",
+  "capability": "github_access",
+  "outcome": "success",
+  "token_id": "tok_abc123"
+}
+```
+
+Stored as an `AuditEntry` node in the SQLite graph. The node `title` is set to `"{agent} — {capability}"` for indexed lookup.
+
+**GET /audit** — query parameters:
+
+| Parameter | Required | Description |
+|---|---|---|
+| `agent` | No | Filter to entries where `agent` matches (substring match on stored JSON) |
+| `limit` | No | Maximum number of entries to return (default `100`, max `500`) |
+
+Returns a JSON array of `AuditEntry` objects, ordered newest-first.
 
 ### KV store endpoints
 
@@ -624,6 +669,7 @@ Currently prints a not-yet-implemented notice. Full implementation scheduled for
 | `FARGA_DB` | `farga.db` | Path to the SQLite database file (created if absent, via `mode=rwc`) |
 | `FARGA_DOCS` | `docs` | Path to the foundation file tree root |
 | `FARGA_PORT` | `7500` | TCP port the server listens on |
+| `ANTHROPIC_API_KEY` | *(none)* | **Required for the librarian subsystem.** The server starts without it, but no automatic governance assessments are produced until it is set. |
 
 The full `farga.toml` configuration (optimizer budget, code host, Gardian URL, webhook secret) is defined in the design spec and targeted for v0.2.0 when the optimizer agent is fully wired.
 
@@ -645,6 +691,7 @@ The `docs/` directory is the human-readable, git-friendly foundation layer. All 
 ```
 docs/
 ├── org.md                              # org culture, standing rules
+├── governance.yaml                     # governance routing configuration (served via GET /governance/config)
 ├── initiatives/
 │   └── <id>.md                         # one file per strategic initiative
 └── projects/
@@ -653,6 +700,8 @@ docs/
         └── <component-path>/
             └── component.md            # fractal component document
 ```
+
+`governance.yaml` contains thresholds and routing rules consumed by the governance subsystem. It is read by `DocsTree::read_governance_config()` and served verbatim by `GET /governance/config`. The file is optional — when absent, the endpoint returns an empty body.
 
 The server reads these files on startup and on hot-reload. There is no import step — the file tree is the source of truth for the foundation layer.
 
@@ -668,7 +717,11 @@ Charradissa (the Occitan messaging and session-routing layer) writes signals via
 
 Amassada (the Occitan session execution layer) writes session artifacts via `POST /artifacts` at the end of each work session. It reads project and component context at session start via `GET /context/project/:id` and `GET /context/component/:project/*path`, assembling the context map for the working agent. Amassada uses both `HttpFargaReader` and `HttpFargaWriter` from `farga-core`.
 
-Both consumers depend on `farga-core` as a library crate. Neither links against `farga-server` directly.
+### Guilhem
+
+Guilhem (the Occitan session agent) reads project context at session start via `GET /docs/{path}` or the `read_context` / `search_signals` MCP tools, and writes observations and decisions at session end via `POST /signals`. Guilhem also registers its running instance in the KV store (`/kv/guilhem/instances/<pod>`) with a short TTL for heartbeat-based presence detection.
+
+Both Charradissa and Amassada depend on `farga-core` as a library crate. Neither links against `farga-server` directly. Guilhem calls farga-server over HTTP using the MCP or REST endpoints.
 
 ---
 

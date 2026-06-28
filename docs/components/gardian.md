@@ -8,7 +8,7 @@
 # Gardian — Credential Chain Gateway
 
 **Gardian** (Occitan: *guardian*) is the credential chain and secrets gateway for the
-[Occitan](https://github.com/miegjorn/Occitan) multi-agent AI platform. It provides
+[Occitan](https://github.com/bedardpl/project/Cor) multi-agent AI platform. It provides
 two-hop credential resolution: a coordinator authenticates once to obtain a root token,
 uses that root token to issue scoped per-agent tokens, and each agent exchanges its token
 for the actual secrets it needs at dispatch time. Gardian sits between the orchestration
@@ -398,7 +398,27 @@ mode (planned), it delegates all operations over HTTP to a running `gardian-serv
 
 ## Configuration
 
-Gardian reads `gardian.toml` from the working directory (or a path passed at startup).
+All runtime configuration is via environment variables. The binary reads them at startup; no config file is required.
+
+| Env var | Default | Description |
+|---|---|---|
+| `GARDIAN_PORT` | `7400` | TCP port the HTTP server binds on |
+| `GARDIAN_API_KEY` | _(unset)_ | API key accepted by `POST /auth`. If unset, the server starts but every auth request returns `401`. Log a warning is emitted at startup. |
+| `GARDIAN_ORG` | `occitan` | Org name used as the root prefix for all secret paths (e.g. `occitan/myproject/...`) |
+| `GARDIAN_ROOT_TOKEN` | _(unset)_ | Root bearer token required by `POST /tokens`. If unset, that endpoint fails closed (`401` always). |
+| `GARDIAN_CAPABILITIES_PATH` | `conventions/capabilities.yaml` | Path to the capability conventions YAML. If the file is absent, an empty convention is used and a warning is logged (all capability checks return `degraded`). |
+| `BAO_ADDR` | _(unset)_ | OpenBao / Vault address (e.g. `http://openbao:8200`). Unset → fall back to `EnvFileBackend` reading `.env`. |
+| `BAO_TOKEN` | _(empty)_ | Token sent as `X-Vault-Token` to OpenBao |
+| `BAO_MOUNT` | `secret` | KV v2 mount name |
+| `BAO_FIELD` | `value` | Field within each secret to return |
+
+> **`GARDIAN_MODE`** — set by the Helm chart as an informational label, but is not currently read by the binary. The binary always starts in server mode regardless of this variable.
+
+### `gardian.toml` (defined, not yet loaded)
+
+A `GardianConfig` struct is defined in `gardian-core::config` and can deserialize the TOML file below, but the binary does not yet load it at startup. All configuration is currently via environment variables above.
+
+> Note: `gardian.toml` is defined but not yet loaded at startup. All configuration is currently via environment variables.
 
 ```toml
 [mode]
@@ -869,9 +889,12 @@ docker build -t ghcr.io/miegjorn/echo-agent:latest .
 kind load docker-image ghcr.io/miegjorn/echo-agent:latest --name occitan
 ```
 
-`gardian-server` honours these environment variables:
+`gardian-server` honours these environment variables (see [Configuration](#configuration) for the full table):
 
 - `GARDIAN_PORT` — listen port (defaults to `7400`).
+- `GARDIAN_API_KEY` — API key for `POST /auth`; if unset the server starts but auth always returns `401`.
+- `GARDIAN_ORG` — org name prefix for secret paths (defaults to `occitan`).
+- `GARDIAN_CAPABILITIES_PATH` — path to `capabilities.yaml` (defaults to `conventions/capabilities.yaml`).
 - `GARDIAN_ROOT_TOKEN` — the root credential gating `POST /tokens`. Callers must send
   it as `Authorization: Bearer <token>`; it is compared in constant time. **If it is
   unset, `POST /tokens` rejects every request with `401` (fail closed).** Set it to a
