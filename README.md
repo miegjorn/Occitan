@@ -19,11 +19,14 @@ Matrix (Synapse homeserver)
     │
     ├── Charradissa ── Matrix ↔ agent bridge
     │       │
-    │       └── routes messages to component agents by room
+    │       └── Amassada ── session engine (POST /sessions/{room_id}/message)
+    │               │
+    │               └── agent endpoint (POST /turn)
+    │                        ├── Guilhem  — org-level chronicler (persistent memory via Farga)
+    │                        └── [component agents — Gardian, Farga, ...]
     │
-    └── Agents
-         ├── Guilhem  — org-level chronicler (persistent memory via Farga)
-         └── [component agents — Gardian, Farga, Amassada, ...]
+    └── Production dispatch path: Matrix event → Charradissa → Amassada → agent POST /turn
+         (block markers stripped from agent replies before posting back to Matrix)
 
 Kubernetes cluster (KinD locally, any k8s in production)
     ├── ArgoCD        — GitOps controller (this repo is the source of truth)
@@ -33,9 +36,9 @@ Kubernetes cluster (KinD locally, any k8s in production)
     └── Components
          ├── Gardian     — secret gateway          (Rust)
          ├── Farga       — durable memory / KV     (Rust)
-         ├── Amassada    — context assembler        (Rust)
+         ├── Amassada    — session engine           (Rust)
          ├── Charradissa — Matrix bridge            (Rust)
-         ├── Cor         — core services            (Rust)
+         ├── Cor         — plugin marketplace CLI   (Rust)
          └── Fondament   — foundation layer         (Rust)
 ```
 
@@ -51,11 +54,11 @@ is published in [`docs/components/`](./docs/components/) by Cartulari.
 |---|---|---|
 | Gardian | Rust | Secret gateway — token validation, credential resolution |
 | Farga | Rust | Durable memory layer — signals, artifacts, project context |
-| Amassada | Rust | Context assembler — aggregates signals for agent consumption |
+| Amassada | Rust | Multi-agent session engine — structured conversations driven by canvas YAML; dispatches turns to agent endpoints |
 | Charradissa | Rust | Matrix ↔ agent bridge — routes room messages to component agents |
-| Cor | Rust | Core services — shared primitives |
+| Cor | Rust | Plugin marketplace CLI — distributes agent definitions, canvases, and MCPs across the stack |
 | Fondament | Rust | Foundation layer — base types and interfaces |
-| Caissa | Helm/ArgoCD | Deployment layer — Helm charts, ArgoCD configuration |
+| Caissa | Helm/ArgoCD | CLI daemon (`caissa listen` serves POST /turn for Amassada dispatch), container toolbox, and Helm/ArgoCD charts for the full stack |
 
 ---
 

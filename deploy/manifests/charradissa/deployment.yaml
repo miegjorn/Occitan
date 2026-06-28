@@ -35,7 +35,7 @@ spec:
           env:
             - name: AGENT_NAME
               value: "charradissa"
-            - name: CHARRADISSA_PORT
+            - name: CHARRADISSA_LISTEN_PORT
               value: "8080"
             - name: MATRIX_HOMESERVER_URL
               value: "http://matrix-synapse.occitan-system.svc.cluster.local:8008"

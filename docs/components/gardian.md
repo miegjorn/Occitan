@@ -8,7 +8,7 @@
 # Gardian — Credential Chain Gateway
 
 **Gardian** (Occitan: *guardian*) is the credential chain and secrets gateway for the
-[Occitan](https://github.com/bedardpl/project/Cor) multi-agent AI platform. It provides
+[Occitan](https://github.com/miegjorn/Occitan) multi-agent AI platform. It provides
 two-hop credential resolution: a coordinator authenticates once to obtain a root token,
 uses that root token to issue scoped per-agent tokens, and each agent exchanges its token
 for the actual secrets it needs at dispatch time. Gardian sits between the orchestration

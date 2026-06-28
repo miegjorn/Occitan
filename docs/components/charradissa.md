@@ -256,6 +256,8 @@ Slash commands are parsed by `parse_slash_command()` in `charradissa-core/src/to
 | `recv_human` | Returns `None` (polling not yet implemented) |
 | `emit_output` | `send_message` — formats all artifacts into a markdown summary |
 
+**Block-marker stripping:** Charradissa strips Amassada session-engine block markers (`[MAIN]`, `[BTW]`, `[LEAVE]`, `[CONSULT]`, etc.) from all agent replies before sending to Matrix rooms. Users see clean prose while agents still receive and produce the full block-syntax instructions internally.
+
 ---
 
 ## Jira Backend
@@ -327,7 +329,7 @@ All fields have documented defaults; the only required fields are `org.name`, `o
 | `JIRA_API_TOKEN` | — | Jira API token for `JiraTaskManager` auth |
 | `JIRA_EMAIL` | — | Atlassian account email for Jira Basic auth |
 | `FARGA_URL` | `http://farga:7500` | Base URL of the Farga HTTP API for signal writes |
-| `GUILHEM_URL` | `http://guilhem.agents.svc.cluster.local:8080` | Base URL of the Guilhem pod's `/matrix/reply` endpoint |
+| `GUILHEM_URL` | `http://agent-guilhem.occitan-system.svc.cluster.local:8080` | Base URL of the Guilhem pod's `/matrix/reply` endpoint |
 | `RUST_LOG` | — | Log filter (e.g. `charradissa=debug,info`) via `tracing-subscriber` |
 
 ---
@@ -468,7 +470,7 @@ See `Caissa/docs/install.md` (step 3e) for the full stack.
 > **Architecture**: Charradissa is the Matrix transport layer only. When a message arrives,
 > `handle_transaction` fetches room history and forwards the event to Guilhem's
 > `POST /matrix/reply` endpoint (`GUILHEM_URL` env, defaults to
-> `http://guilhem.agents.svc.cluster.local:8080`). Guilhem runs `claude --print` with his
+> `http://agent-guilhem.occitan-system.svc.cluster.local:8080`). Guilhem runs `claude --print` with his
 > full persona, Farga MCP, and `Bash` (giving access to `gh`, `glab`, `git`), then returns
 > the reply text. Charradissa posts it back to Matrix. `responder.rs` is retained for
 > reference and its tests, but is no longer in the production reply path.

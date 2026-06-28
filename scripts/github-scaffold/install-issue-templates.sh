@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WORKSPACE="/Users/bedardpl/project"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 REPOS=(Gardian Fondament Farga Amassada Charradissa Cor Caissa)
 
 for repo in "${REPOS[@]}"; do
