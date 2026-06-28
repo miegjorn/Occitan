@@ -21,8 +21,6 @@ Component source code lives in private repositories under the
 | Cor | Core services — shared runtime primitives | [→](components/cor.md) |
 | Caissa | Deployment layer — Helm charts and ArgoCD configuration | [→](components/caissa.md) |
 
-> Links above activate after the first Cartulari run populates `docs/components/`.
-
 ---
 
 *To refresh: trigger the [Cartulari workflow](https://github.com/miegjorn/Occitan/actions/workflows/cartulari.yml) manually.*
