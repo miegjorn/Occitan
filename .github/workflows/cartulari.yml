@@ -29,7 +29,11 @@ jobs:
 
       - name: Harvest and sanitize component docs
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # CARTULARI_TOKEN must be a PAT with `repo` read scope on the miegjorn org.
+          # GITHUB_TOKEN only covers this repo — it cannot read private component repos.
+          # Create at: https://github.com/settings/tokens/new?scopes=repo&description=cartulari
+          # Then add as Actions secret: Settings → Secrets → Actions → CARTULARI_TOKEN
+          GH_TOKEN: ${{ secrets.CARTULARI_TOKEN }}
         run: python .github/scripts/cartulari.py
 
       - name: Open PR if docs changed

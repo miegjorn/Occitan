@@ -43,15 +43,19 @@ Kubernetes cluster (KinD locally, any k8s in production)
 
 ## Component Repositories
 
+The production components are developed in private repositories under the
+[miegjorn](https://github.com/miegjorn) organisation. Their sanitized documentation
+is published in [`docs/components/`](./docs/components/) by Cartulari.
+
 | Component | Language | Role |
 |---|---|---|
-| [Gardian](https://github.com/miegjorn/Gardian) | Rust | Secret gateway — token validation, credential resolution |
-| [Farga](https://github.com/miegjorn/Farga) | Rust | Durable memory layer — signals, artifacts, project context |
-| [Amassada](https://github.com/miegjorn/Amassada) | Rust | Context assembler — aggregates signals for agent consumption |
-| [Charradissa](https://github.com/miegjorn/Charradissa) | Rust | Matrix ↔ agent bridge — routes room messages to component agents |
-| [Cor](https://github.com/miegjorn/Cor) | Rust | Core services — shared primitives |
-| [Fondament](https://github.com/miegjorn/Fondament) | Rust | Foundation layer — base types and interfaces |
-| [Caissa](https://github.com/miegjorn/Caissa) | Helm/ArgoCD | Deployment layer — Helm charts, ArgoCD configuration |
+| Gardian | Rust | Secret gateway — token validation, credential resolution |
+| Farga | Rust | Durable memory layer — signals, artifacts, project context |
+| Amassada | Rust | Context assembler — aggregates signals for agent consumption |
+| Charradissa | Rust | Matrix ↔ agent bridge — routes room messages to component agents |
+| Cor | Rust | Core services — shared primitives |
+| Fondament | Rust | Foundation layer — base types and interfaces |
+| Caissa | Helm/ArgoCD | Deployment layer — Helm charts, ArgoCD configuration |
 
 ---
 
@@ -91,7 +95,7 @@ To run the real Rust components, override image values in your own `values-produ
 > **Note:** `mock/echo-agent` is a **Python placeholder** for showcase and local development.
 >
 > All production components of the Occitan stack are written in **Rust**.
-> See the component repositories listed above for the real implementations.
+> See [`docs/components/`](./docs/components/) for sanitized documentation of each component.
 
 The mock image exposes a minimal HTTP API:
 - `GET /health` → `{"status": "ok", "component": "<AGENT_NAME>"}`

@@ -2,26 +2,27 @@
 
 # Occitan Stack — Component Documentation
 
-This directory is maintained by [Cartulari](../.github/workflows/cartulari.yml),
-the stack's documentation harvester.
+Documentation harvested from private component repositories, sanitized, and
+published here for public consumption by [Cartulari](../.github/workflows/cartulari.yml).
 
-Cartulari runs weekly, fetches README files from each component repository,
-applies sanitization rules to remove private references, and commits the
-result here as a pull request.
+Cartulari runs weekly (Mondays 04:00 UTC) or on manual trigger.
+Component source code lives in private repositories under the
+[miegjorn](https://github.com/miegjorn) organisation.
 
 ## Components
 
-| Component | Description |
-|---|---|
-| [Gardian](components/gardian.md) | Secret gateway — token validation and credential resolution |
-| [Fondament](components/fondament.md) | Foundation layer — base types and shared interfaces |
-| [Farga](components/farga.md) | Durable memory layer — signals, artifacts, and project context |
-| [Amassada](components/amassada.md) | Context assembler — aggregates Farga signals for agent consumption |
-| [Charradissa](components/charradissa.md) | Matrix ↔ agent bridge — routes room messages to component agents |
-| [Cor](components/cor.md) | Core services — shared runtime primitives |
-| [Caissa](components/caissa.md) | Deployment layer — Helm charts and ArgoCD configuration |
+| Component | Description | Docs |
+|---|---|---|
+| Gardian | Secret gateway — token validation, credential resolution | [→](components/gardian.md) |
+| Fondament | Foundation layer — base types and shared interfaces | [→](components/fondament.md) |
+| Farga | Durable memory layer — signals, artifacts, project context | [→](components/farga.md) |
+| Amassada | Context assembler — aggregates Farga signals for agent consumption | [→](components/amassada.md) |
+| Charradissa | Matrix ↔ agent bridge — routes room messages to component agents | [→](components/charradissa.md) |
+| Cor | Core services — shared runtime primitives | [→](components/cor.md) |
+| Caissa | Deployment layer — Helm charts and ArgoCD configuration | [→](components/caissa.md) |
+
+> Links above activate after the first Cartulari run populates `docs/components/`.
 
 ---
 
-*To refresh this documentation, trigger the Cartulari workflow manually
-or wait for the next weekly run (Mondays 04:00 UTC).*
+*To refresh: trigger the [Cartulari workflow](https://github.com/miegjorn/Occitan/actions/workflows/cartulari.yml) manually.*
