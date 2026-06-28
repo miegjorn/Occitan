@@ -114,6 +114,19 @@ repositories, sanitizes private references, and commits the result here weekly.
 
 ---
 
+## Scheduled operations
+
+| Schedule | Job | Description |
+|----------|-----|-------------|
+| Every 6h | `guilhem-chronicle` | Guilhem observes and records stack activity to Farga |
+| Weekly Mon 09:00 | `guilhem-backlog-review` | Backlog synthesis across all repos |
+| Daily 03:00 UTC | `guilhem-dream` | Nightly consolidation: gather → synthesize → create issues → Farga report |
+| Every 30min | `guilhem-sre-alert` | SRE watchdog alert layer |
+
+See [`docs/components/dream.md`](./docs/components/dream.md) for the nightly dream consolidation protocol.
+
+---
+
 ## Design Principles
 
 - **Memory over statefulness.** Agents are stateless processes; continuity lives in Farga.

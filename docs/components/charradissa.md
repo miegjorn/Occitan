@@ -193,6 +193,8 @@ The `daily_token_budget` caps total LLM token consumption before any job fires.
 
 `FargaWriter` trait has two methods: `write_signals` and `recent_signals`. The `HttpFargaWriter` POSTs signals to `{base_url}/signals` and GETs recent signals from `{base_url}/signals/recent?project=<p>&since=<n>h`. Charradissa writes raw signals; Farga's own agent handles dedup, conflict resolution, and lazy resolution index optimization.
 
+See [`docs/components/dream.md`](dream.md) for the nightly dream consolidation that Guilhem runs automatically.
+
 ---
 
 ## Approval Flow
