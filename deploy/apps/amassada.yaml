@@ -1,0 +1,35 @@
+# Occitan Stack — Amassada (context assembler)
+#
+# Amassada assembles context from Farga signals and artifacts, packaging
+# it for agent consumption. It is the layer between raw memory and
+# actionable agent context. Written in Rust.
+#
+# In this public manifest, the image points to the mock echo-agent.
+# Override with the real image in your values-production.yaml.
+#
+# Source: https://github.com/miegjorn/Amassada
+#
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: amassada
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: occitan
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/miegjorn/Occitan
+    targetRevision: HEAD
+    path: deploy/manifests/amassada
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: occitan-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

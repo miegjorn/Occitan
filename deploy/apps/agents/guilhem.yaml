@@ -1,0 +1,37 @@
+# Occitan Stack — Guilhem (org-level agent)
+#
+# Guilhem is the org-level chronicler agent. It holds the widest view of the
+# stack, reads project context from Farga at session start, and writes
+# observations, decisions, and narrative back when done.
+#
+# In this public manifest, the image points to the mock echo-agent.
+# Override with the real Claude-based image in your values-production.yaml.
+#
+# Requires:
+#   agent-secrets / anthropic-api-key
+#
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agent-guilhem
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: occitan
+    occitan.io/type: agent
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/miegjorn/Occitan
+    targetRevision: HEAD
+    path: deploy/manifests/agents/guilhem
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: occitan-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,85 @@
+# Guilhem — org-level agent
+# Mock image used by default. Override image in values-production.yaml.
+#
+# Guilhem is the chronicler of the Occitan stack. It maintains the widest
+# view across all components, reads project context from Farga at session
+# start, and writes observations and decisions back when done.
+#
+# In production, this runs a Claude-based agent with MCP tools wired to
+# Farga, the dispatcher, and GitHub. The mock echo-agent here is a
+# structural placeholder only.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-guilhem
+  namespace: occitan-system
+  labels:
+    app: agent-guilhem
+    app.kubernetes.io/part-of: occitan
+    occitan.io/type: agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent-guilhem
+  template:
+    metadata:
+      labels:
+        app: agent-guilhem
+        occitan.io/type: agent
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: guilhem
+          image: ghcr.io/miegjorn/echo-agent:latest  # mock — override for production
+          ports:
+            - containerPort: 8080
+          env:
+            - name: AGENT_NAME
+              value: "guilhem"
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: agent-secrets
+                  key: anthropic-api-key
+            - name: FARGA_URL
+              value: "http://farga.occitan-system.svc.cluster.local"
+            - name: MATRIX_HOMESERVER_URL
+              value: "http://matrix-synapse.occitan-system.svc.cluster.local:8008"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-guilhem
+  namespace: occitan-system
+  labels:
+    app: agent-guilhem
+    app.kubernetes.io/part-of: occitan
+spec:
+  selector:
+    app: agent-guilhem
+  ports:
+    - port: 80
+      targetPort: 8080

@@ -1,0 +1,69 @@
+# Cor — core services (Rust)
+# Mock image used by default. Override image in values-production.yaml.
+# Source: https://github.com/miegjorn/Cor
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cor
+  namespace: occitan-system
+  labels:
+    app: cor
+    app.kubernetes.io/part-of: occitan
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cor
+  template:
+    metadata:
+      labels:
+        app: cor
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: cor
+          image: ghcr.io/miegjorn/echo-agent:latest  # mock — override for production
+          ports:
+            - containerPort: 8080
+          env:
+            - name: AGENT_NAME
+              value: "cor"
+            - name: COR_PORT
+              value: "8080"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cor
+  namespace: occitan-system
+  labels:
+    app: cor
+    app.kubernetes.io/part-of: occitan
+spec:
+  selector:
+    app: cor
+  ports:
+    - port: 80
+      targetPort: 8080

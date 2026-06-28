@@ -1,0 +1,74 @@
+# Gardian — secret gateway (Rust)
+# Mock image used by default. Override image in values-production.yaml.
+# Source: https://github.com/miegjorn/Gardian
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gardian
+  namespace: occitan-system
+  labels:
+    app: gardian
+    app.kubernetes.io/part-of: occitan
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gardian
+  template:
+    metadata:
+      labels:
+        app: gardian
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: gardian
+          image: ghcr.io/miegjorn/echo-agent:latest  # mock — override for production
+          ports:
+            - containerPort: 8080
+          env:
+            - name: AGENT_NAME
+              value: "gardian"
+            - name: GARDIAN_PORT
+              value: "8080"
+            - name: GARDIAN_ROOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gardian-secrets
+                  key: root-token
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gardian
+  namespace: occitan-system
+  labels:
+    app: gardian
+    app.kubernetes.io/part-of: occitan
+spec:
+  selector:
+    app: gardian
+  ports:
+    - port: 80
+      targetPort: 8080

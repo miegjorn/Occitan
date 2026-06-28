@@ -1,0 +1,15 @@
+# Secret overrides — never commit
+values-production.yaml
+values-*.local.yaml
+*.env
+.env.*
+secrets/
+
+# Local cluster state
+kubeconfig.local
+kind-config.local.yaml
+
+# OS / editor
+.DS_Store
+.idea/
+*.swp
