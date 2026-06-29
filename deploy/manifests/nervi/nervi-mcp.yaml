@@ -1,0 +1,85 @@
+# Nèrvi MCP server — nervi_publish / nervi_subscribe tools
+#
+# ClusterIP service only — agents reach it at:
+#   http://nervi-mcp.nervi.svc.cluster.local:8080
+#
+# Image built and pushed to ghcr.io/miegjorn/nervi-mcp on every main push
+# to miegjorn/nervi. Uses :latest — ArgoCD selfHeal picks up new images
+# when the pod is recycled.
+#
+# NATS_URL points to the nervi-nats Service (wave 1, same namespace).
+#
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nervi-mcp
+  namespace: nervi
+  labels:
+    app: nervi-mcp
+    app.kubernetes.io/part-of: occitan
+    app.kubernetes.io/component: nervi-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nervi-mcp
+  template:
+    metadata:
+      labels:
+        app: nervi-mcp
+        app.kubernetes.io/part-of: occitan
+        app.kubernetes.io/component: nervi-mcp
+    spec:
+      imagePullSecrets:
+        - name: ghcr-creds
+      containers:
+        - name: nervi-mcp
+          image: ghcr.io/miegjorn/nervi-mcp:latest
+          imagePullPolicy: Always
+          ports:
+            - name: mcp
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: NERVI_MCP_TRANSPORT
+              value: "http"
+            - name: PORT
+              value: "8080"
+            - name: NATS_URL
+              value: "nats://nervi-nats.nervi.svc.cluster.local:4222"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: mcp
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: mcp
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nervi-mcp
+  namespace: nervi
+  labels:
+    app: nervi-mcp
+    app.kubernetes.io/part-of: occitan
+spec:
+  type: ClusterIP
+  selector:
+    app: nervi-mcp
+  ports:
+    - name: mcp
+      port: 8080
+      targetPort: mcp

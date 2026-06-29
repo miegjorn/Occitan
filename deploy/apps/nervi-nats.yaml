@@ -1,0 +1,78 @@
+# Occitan Stack — Nèrvi NATS JetStream (signal bus substrate)
+#
+# Deploys NATS JetStream as the async message bus for the Nèrvi subscription
+# fabric. Uses the public NATS Helm chart — no private repo credentials needed.
+#
+# Sync-wave 1: NATS must be Running before the nervi ArgoCD app (wave 2)
+# starts the stream-provision Job and the nervi-mcp Deployment.
+#
+# Source: https://github.com/miegjorn/nervi  (helm/nervi — nats subchart values)
+#
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nervi-nats
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: occitan
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://nats-io.github.io/k8s/helm/charts/
+    chart: nats
+    targetRevision: "2.14.2"
+    helm:
+      releaseName: nervi-nats
+      values: |
+        # Pin the NATS service name so the MCP default URL resolves regardless
+        # of release name: nats://nervi-nats.nervi.svc.cluster.local:4222
+        fullnameOverride: nervi-nats
+
+        config:
+          cluster:
+            enabled: false
+          jetstream:
+            enabled: true
+            fileStore:
+              enabled: true
+              pvc:
+                enabled: true
+                size: 1Gi
+          memoryStore:
+            enabled: false
+
+        service:
+          enabled: true
+          ports:
+            nats:
+              enabled: true
+            leafnodes:
+              enabled: false
+            websocket:
+              enabled: false
+            mqtt:
+              enabled: false
+            cluster:
+              enabled: false
+            gateway:
+              enabled: false
+            monitor:
+              enabled: false
+            profiling:
+              enabled: false
+
+        # nats-box disabled — stream provisioning is handled by the nervi
+        # stream-provision Job (in the nervi ArgoCD app, wave 2).
+        natsBox:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nervi
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

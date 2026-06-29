@@ -1,0 +1,34 @@
+# Occitan Stack — Nèrvi MCP server + OCCITAN stream provisioning
+#
+# Deploys the nervi-mcp MCP server (nervi_publish / nervi_subscribe tools)
+# and the one-time Job that creates the OCCITAN JetStream stream.
+#
+# Sync-wave 2: runs after nervi-nats (wave 1) has provisioned NATS JetStream.
+# The stream-provision Job waits for NATS readiness before creating the stream.
+#
+# Source: https://github.com/miegjorn/nervi
+#
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nervi
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: occitan
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/miegjorn/Occitan
+    targetRevision: HEAD
+    path: deploy/manifests/nervi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nervi
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

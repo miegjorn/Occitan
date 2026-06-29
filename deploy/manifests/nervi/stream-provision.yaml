@@ -1,0 +1,71 @@
+# OCCITAN JetStream stream provisioning
+#
+# Creates (or confirms existence of) the durable OCCITAN stream on first sync.
+# Idempotent: safe to re-apply — succeeds even if the stream already exists.
+#
+# Subjects: occitan.> — captures all Nèrvi signal subjects
+# Retention: limits (7 days / 1 GiB, whichever comes first)
+# Storage:   file — survives pod restarts
+#
+# The Job waits for NATS readiness before acting, so ordering relative to
+# nervi-nats (ArgoCD sync-wave 1) is handled by the readiness loop — no
+# initContainer dependency needed.
+#
+# Re-runs on every ArgoCD sync that changes this manifest. The nats CLI
+# `stream add --force-update` flag makes this safe.
+#
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nervi-stream-provision
+  namespace: nervi
+  labels:
+    app.kubernetes.io/part-of: occitan
+    app.kubernetes.io/component: stream-provision
+  annotations:
+    # ArgoCD: re-create this Job on every sync so it re-runs on chart upgrades.
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: occitan
+        app.kubernetes.io/component: stream-provision
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: provision
+          image: natsio/nats-box:0.18.0
+          env:
+            - name: NATS_URL
+              value: "nats://nervi-nats.nervi.svc.cluster.local:4222"
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Waiting for NATS at $NATS_URL ..."
+              until nats rtt >/dev/null 2>&1; do
+                echo "  ...not ready yet"; sleep 3;
+              done
+              echo "NATS reachable. Reconciling OCCITAN stream."
+              if nats stream info OCCITAN >/dev/null 2>&1; then
+                echo "Stream OCCITAN already exists — verifying."
+                nats stream info OCCITAN
+              else
+                nats stream add OCCITAN \
+                  --subjects "occitan.>" \
+                  --storage file \
+                  --retention limits \
+                  --max-age 168h \
+                  --max-bytes 1073741824 \
+                  --replicas 1 \
+                  --discard old \
+                  --dupe-window 2m \
+                  --defaults
+                echo "Stream OCCITAN created."
+              fi
