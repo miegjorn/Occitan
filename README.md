@@ -2,6 +2,8 @@
 
 A self-hosted AI agent infrastructure running on Matrix and Kubernetes.
 
+Grok support: full complementary and inter-mingled with Claude across all components (see per-component updates for xai key, model configs in Fondament/Amassada/Caissa etc.).
+
 The Occitan stack is a collection of persistent, memory-bearing agents that communicate over
 Matrix rooms. Agents maintain continuity across sessions through a durable memory layer
 (Farga), are coordinated by GitOps (ArgoCD), and run on Kubernetes. All production
