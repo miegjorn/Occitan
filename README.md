@@ -136,3 +136,10 @@ See [`docs/components/dream.md`](./docs/components/dream.md) for the nightly dre
 - **GitOps all the way down.** No manual `kubectl apply` in production — everything through ArgoCD.
 - **Rust for reliability.** Production components are written in Rust for correctness and performance.
 - **Self-referential by design.** Agents generate the context that future agents are grown from.
+- **Human in the approval loop for architecture, structurally, not just by policy.** Guilhem's
+  PR-merge authority is gated three ways: a hard persona rule against self-merging escalated
+  changes, a blocking Matrix approval step, and GitHub branch protection + CODEOWNERS naming
+  Pierre-Luc as required reviewer. Every agent container authenticates as its own registered
+  GitHub App identity rather than a shared personal token, so that last gate can't be satisfied
+  by the same principal that opened the PR. See `docs/superpowers/specs/2026-07-01-guilhem-merge-approval-design.md`
+  and `docs/superpowers/specs/2026-07-01-guilhem-github-app-identity-design.md`.
