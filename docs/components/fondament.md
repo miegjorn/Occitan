@@ -567,6 +567,32 @@ pub enum LintResult {
 
 Failures cause `fondament check` to exit non-zero. Warnings are printed but do not block.
 
+### Project-Agent CI Lint (`scripts/lint_project_agents.py`)
+
+A lightweight, dependency-light structural lint dedicated to project-composition
+files under `definitions/fondament/projects/`. It runs in CI (the `lint-projects`
+job in `build-guilhem.yml`) without building the Rust toolchain, so it gates every
+PR — including from forks — independently of the image build. It complements the
+in-process fast lint above (which ships inside Caissa and lags this repo until the
+prebuilt binary is republished).
+
+| Rule | Kind | Description |
+|---|---|---|
+| `yaml-parse` | Fail | File must be valid YAML with a top-level mapping. |
+| `kind-project-composition` | Fail | `kind` must be exactly `project-composition`. |
+| `id-present` | Fail | `id` must be present and non-empty. |
+| `id-path-convention` | Fail | `id` must equal the file's path under `definitions/` minus the extension (e.g. `fondament/projects/example-agent`). |
+| `name-present` | Fail | `name` must be present and non-empty. |
+| `description-present` | Fail | `description` must be present and non-empty. |
+| `parts-present` | Fail | `parts` must be a non-empty list. |
+| `farga-part-project` | Fail | Each part with `source: farga` must carry a non-empty `project`. |
+| `deconstructive-field` | Warn | `deconstructive` is a spawn-time modifier, not a composition field — serde drops it silently, so it has no effect. Warned, not failed, so existing files are not blocked. |
+
+`model` is optional. The id-path convention is derived from the nearest ancestor
+`definitions/` directory rather than hardcoded, so the rules apply unchanged to the
+Bosa Properties stack. Run it locally with `python scripts/lint_project_agents.py`
+and the test suite with `python -m unittest scripts/test_lint_project_agents.py`.
+
 ### Sweep Lint (`lint::sweep`)
 
 LLM-assisted semantic analysis intended to run on a schedule. The `lint::sweep::run_sweep` library function itself remains a stub returning an empty `SweepReport` (see below). A separate, independently implemented `fondament sweep` CLI command (`fondament-cli/src/commands/sweep.rs`) exists and is functional today — it calls the Anthropic API directly (per-definition, not via `run_sweep`/`SweepReport`) to assess whether each definition's `context` matches its declared `kind`/`id`. See [`fondament sweep`](#fondament-sweep-path) below. The two are not yet unified; the structured `SweepConflict`/`ConvergenceOpportunity` checks described next are still aspirational. The sweep checks for:

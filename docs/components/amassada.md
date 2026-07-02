@@ -714,7 +714,8 @@ WebSocket upgrade endpoint. On connect, the handler subscribes to the server's `
 
 ## Configuration
 
-All configuration is via environment variables. No configuration file.
+Runtime configuration is via environment variables. The one configuration file is
+the project registry (`projects.toml`), documented below.
 
 | Variable | Default | Description |
 |---|---|---|
@@ -724,6 +725,39 @@ All configuration is via environment variables. No configuration file.
 | `FONDAMENT_PATH` | `/fondament` | Root of the Fondament definitions checkout. Critical for persona resolution — `resolve_persona()` looks for `definitions/` under this path. All canvas participants with a `domain` field depend on this being set correctly. |
 | `FARGA_URL` | — | Optional. Base URL of the Farga persistence service (e.g. `http://farga.agents.svc.cluster.local:8090`). When set, session graphs are loaded on session resume and saved on session close. Omitting this variable disables graph persistence; sessions always start with a fresh graph. |
 | `AMASSADA_PROJECTS_PATH` | `config/projects.toml` | Path to the project registry TOML file. The registry maps Matrix room IDs to Fondament persona IDs and MCP scope lists, enabling multi-tenant dispatch from a single Amassada instance. |
+
+### Project registry (`projects.toml`)
+
+The registry is what turns Amassada from a single Guilhem orchestrator into a
+multi-tenant runtime: it maps each project's Matrix rooms onto a Fondament persona,
+a Farga project, and an MCP scope list. It is loaded once at startup from
+`AMASSADA_PROJECTS_PATH` (default `config/projects.toml`) and is read-only at runtime —
+edit the file and restart to add a project. If the file is absent, Amassada logs a
+warning and starts with an empty registry; an empty (or whitespace-only) file is also
+valid and yields an empty registry. With no registered project, `POST /sessions/{id}/message`
+falls back to the canvas participant's `domain` field (org / single-tenant path).
+
+The file is a list of `[[projects]]` tables:
+
+```toml
+[[projects]]
+id = "example-agent"                                  # stable project id (session key, get_by_id lookups)
+fondament_persona = "fondament/projects/example-agent" # Fondament persona id, resolved against $FONDAMENT_PATH/definitions/
+matrix_rooms = ["!exampleRoomId:<your-domain>"]    # rooms this project answers in; room_id reverse-maps here
+farga_project = "example-agent"                        # Farga project this agent's SessionGraph reads/writes
+mcp_scopes = ["farga:read", "farga:write:example-agent"] # optional; propagated into every dispatched turn
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `id` | yes | Stable project identifier. Used for `get_by_id` lookups and as the session key. |
+| `fondament_persona` | yes | Fondament persona id to resolve for this project's agent (e.g. `fondament/projects/example-agent`), resolved against `$FONDAMENT_PATH/definitions/`. |
+| `matrix_rooms` | yes | Matrix room IDs this project answers in. An incoming message's `room_id` is reverse-looked-up to this project. |
+| `farga_project` | yes | Farga project this agent reads/writes its `SessionGraph` to. |
+| `mcp_scopes` | no | Declared MCP tool scopes, propagated verbatim into every dispatched turn so the receiving agent pod can restrict itself to the declared tool set. Convention: `farga:read`, `farga:write:<project>`. Absent means no scope restriction declared — use only for org-level agents like Guilhem. |
+
+A documented starter file (format comments + a commented-out `example-agent` entry) ships at
+[`config/projects.toml`](config/projects.toml).
 
 ---
 
