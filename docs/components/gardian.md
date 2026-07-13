@@ -14,6 +14,8 @@ uses that root token to issue scoped per-agent tokens, and each agent exchanges 
 for the actual secrets it needs at dispatch time. Gardian sits between the orchestration
 layer and every secret store so no agent ever holds long-lived credentials directly.
 
+Grok support: seed XAI_API_KEY as occitan/xai for agents using Grok models (complementary to Claude).
+
 ---
 
 ## Table of Contents

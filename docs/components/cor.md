@@ -9,7 +9,7 @@
 
 **Cor** (Occitan: *heart*) is the plugin marketplace for the Occitan stack. It distributes agent definitions, multi-agent debate canvases, MCP tool servers, disciplines, practices, roles, and bundles of the above. Cor is also the umbrella repository for the Occitan stack: `.claude` config, cross-repo memory, and stack-level documentation all live here.
 
-Default provider: **Claude** (Anthropic). The manifest schema is provider-agnostic; multi-provider declarations are supported by design.
+Default provider: **Claude** (Anthropic). Grok (xAI) support for complementary inter-mingling: set model to "grok-*" in agent defs (requires XAI key). The manifest schema is provider-agnostic.
 
 ---
 
