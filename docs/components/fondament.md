@@ -32,7 +32,8 @@ An agent is a dynamically assembled context. Fondament defines the static primit
 13. [Error Types](#error-types)
 14. [Testing](#testing)
 15. [Key Dependencies](#key-dependencies)
-16. [Out of Scope (v1)](#out-of-scope-v1)
+16. [Attribution](#attribution)
+17. [Out of Scope (v1)](#out-of-scope-v1)
 
 ---
 
@@ -74,7 +75,7 @@ fondament/
 │           └── sweep.rs        # fondament sweep
 ├── definitions/                # the primitive tree
 │   ├── disciplines/            # atomic horizontal knowledge domains
-│   │   ├── deconstructive.yaml # modifier discipline — no context, injects preamble behaviour
+│   │   ├── aporia.yaml # modifier discipline — no context, injects preamble behaviour
 │   │   ├── rust-async.yaml
 │   │   └── data/
 │   │       └── db/
@@ -91,9 +92,9 @@ fondament/
 │       └── projects/           # kind: project-composition — concrete instantiated project agents
 │           └── example-agent.yaml
 └── packages/                   # Cor plugin packages (installable via `cor install`)
-    └── deconstructive/
+    └── aporia/
         ├── plugin.toml         # Cor manifest (id, kind, compatibility, artifact, install)
-        └── deconstructive.yaml # installable artifact
+        └── aporia.yaml # installable artifact
 ```
 
 ---
@@ -220,15 +221,15 @@ The `default_model` on a discipline sets the cognitive load baseline for that do
 
 A special class of discipline that changes **how prompt assembly behaves** rather than contributing corpus content. Modifier disciplines have `modifier: true` and no `context` field. They are referenced in composition addresses alongside a `+` qualifier and are never walked as corpus layers — the resolver detects their presence upfront and applies their behaviour as a side-effect of assembly.
 
-The only built-in modifier discipline is `deconstructive`:
+The only built-in modifier discipline is `aporia`:
 
 ```yaml
-id: disciplines/deconstructive
+id: disciplines/aporia
 kind: discipline
 modifier: true
 ```
 
-When `deconstructive` is active the resolver:
+When `aporia` is active the resolver:
 1. Generates a preamble that lists the agent's actual composed parts (disciplines + stance by name)
 2. Injects that preamble as the **first** layer of the system prompt — before org, initiative, and domain context
 3. Sets `thinking_budget` on `ResolvedAgent` so the dispatch layer can enable extended thinking
@@ -249,7 +250,7 @@ synthesis), raw-voice injection tied or beat pre-synthesized
 crystallization in every comparison and never lost. It also held up as the
 cheapest and fastest option at the Haiku tier, so the mechanism is not
 gated behind an expensive model. Full methodology, results tables, and
-limitations: [`docs/deconstructive-empirical-basis.md`](docs/deconstructive-empirical-basis.md).
+limitations: [`docs/aporia-empirical-basis.md`](docs/aporia-empirical-basis.md).
 
 ### Practice
 
@@ -290,7 +291,26 @@ skills:
   - superpowers:receiving-code-review
 ```
 
-`default_model` on a role overrides the discipline baseline — higher cognitive load warrants a more capable model. `skills` (seen here, and on the `fondament/*` facet roles dispatched by Caissa — `developer`, `infra-engineer`, `qa-engineer`, `security-analyst`, `app-architect`, `data-architect`, `guilhem`) is currently role-only by convention, not by schema enforcement — nothing rejects it on a discipline, practice, or stance file, but no consumer reads it from those kinds today either.
+`default_model` on a role overrides the discipline baseline — higher cognitive load warrants a more capable model. `skills` (seen here, and on the `fondament/*` facet roles dispatched by Caissa — `developer`, `infra-engineer`, `qa-engineer`, `security-analyst`, `code-reviewer`, `business-analyst`, `cloud-architect`, `aws-architect`, `azure-architect`, `gcp-architect`, `technical-writer`, `librarian`, `app-architect`, `data-architect`, `guilhem`) is currently role-only by convention, not by schema enforcement — nothing rejects it on a discipline, practice, or stance file, but no consumer reads it from those kinds today either.
+
+#### Available fondament roles
+
+| Role ID | Version | Purpose |
+|---|---|---|
+| `fondament/guilhem` | — | Org agent (Charradissa appservice sender) |
+| `fondament/developer` | 1.1.0 | Software developer — TDD-first, spec-driven, adversarial self-review |
+| `fondament/qa-engineer` | 1.1.0 | QA — acceptance tests, performance baselines, flaky-test elimination |
+| `fondament/code-reviewer` | 1.2.0 | Code review — BLOCKER/ADVISORY/NIT; adversarial pre-review pass |
+| `fondament/security-analyst` | 1.1.0 | Code-level security (SAST, OWASP, injection) — not cloud posture |
+| `fondament/infra-engineer` | 1.1.0 | IaC, pipelines, SRE, Kubernetes — implements what cloud-architect designs |
+| `fondament/cloud-architect` | 1.0.0 | Cloud design base — Well-Architected, BLOCKER/CONCERN/OBSERVATION format |
+| `fondament/aws-architect` | 1.1.0 | AWS-specific — IAM-first, VPC, KMS, multi-AZ, cost tooling |
+| `fondament/azure-architect` | 1.0.0 | Azure-specific — Entra ID, Bicep, VNet, Defender for Cloud |
+| `fondament/gcp-architect` | 1.0.0 | GCP-specific — Workload Identity, Shared VPC, BigQuery, Org Policies |
+| `fondament/business-analyst` | 1.1.0 | Requirements elicitation, acceptance criteria, process mapping |
+| `fondament/technical-writer` | 1.0.0 | Documentation, synthesis, docx/PDF/Google Docs output, diagrams |
+| `fondament/librarian` | 1.0.0 | Farga memory curation — staleness, orphans, conflicts, synthesis |
+| `fondament/farga-agent` | — | Per-project Farga context agent |
 
 ### Stance
 
@@ -359,7 +379,7 @@ tools:
 
 A concrete instantiation of a project agent. Uses a `parts:` list to assemble context from multiple sources (`inline` for static text, `farga` to pull live project context at spawn time). The `model:` field sets the composition model and is validated separately from `default_model`. The `name:` and `description:` fields are human-readable metadata.
 
-To enable the deconstructive modifier, add it via the `CompositionAddress` at dispatch time (e.g. `fondament/projects/example-agent+deconstructive`) — it is not controlled by a field in the definition file.
+To enable the aporia modifier, add it via the `CompositionAddress` at dispatch time (e.g. `fondament/projects/example-agent+aporia`) — it is not controlled by a field in the definition file.
 
 ```yaml
 id: fondament/projects/example-agent
@@ -389,12 +409,12 @@ fondament/<role-id>                          # references a Fondament role direc
 <project>+<stance>                           # Farga project context + stance (no facet)
 ```
 
-Modifier disciplines (e.g. `deconstructive`) stack before the stance with an additional `+`:
+Modifier disciplines (e.g. `aporia`) stack before the stance with an additional `+`:
 
 ```
-fondament/<role-id>+deconstructive           # Role + modifier, no stance
-fondament/<role-id>+deconstructive+<stance>  # Role + modifier + stance override
-<project>/<facet>+deconstructive+<stance>    # Composed + modifier + stance
+fondament/<role-id>+aporia           # Role + modifier, no stance
+fondament/<role-id>+aporia+<stance>  # Role + modifier + stance override
+<project>/<facet>+aporia+<stance>    # Composed + modifier + stance
 ```
 
 Examples:
@@ -403,10 +423,10 @@ Examples:
 |---|---|---|
 | `fondament/security-sre` | `Role` | Resolve the `roles/security-sre` definition directly |
 | `fondament/app-architect+adversarial` | `Role` | As above, stance override to `adversarial` |
-| `fondament/app-architect+deconstructive` | `Role` | As above, with deconstructive preamble injection and extended thinking enabled |
-| `fondament/app-architect+deconstructive+adversarial` | `Role` | Modifier + stance override combined |
+| `fondament/app-architect+aporia` | `Role` | As above, with aporia preamble injection and extended thinking enabled |
+| `fondament/app-architect+aporia+adversarial` | `Role` | Modifier + stance override combined |
 | `acme-auth/auth+adversarial` | `Composed` | Fetch `acme-auth` project context from Farga, narrow to `auth` facet, apply `adversarial` stance |
-| `acme-auth/auth+deconstructive+adversarial` | `Composed` | As above, with deconstructive modifier |
+| `acme-auth/auth+aporia+adversarial` | `Composed` | As above, with aporia modifier |
 
 The Rust enum:
 
@@ -414,19 +434,19 @@ The Rust enum:
 pub enum CompositionAddress {
     Role {
         role: String,
-        modifiers: Vec<String>,          // e.g. ["deconstructive"]
+        modifiers: Vec<String>,          // e.g. ["aporia"]
         stance_override: Option<String>,
     },
     Composed {
         project: String,
         facet: Option<String>,
-        modifiers: Vec<String>,          // e.g. ["deconstructive"]
+        modifiers: Vec<String>,          // e.g. ["aporia"]
         stance: String,
     },
 }
 
 /// Discipline names that route to `modifiers` rather than `stance` during parsing.
-pub const KNOWN_MODIFIER_DISCIPLINES: &[&str] = &["deconstructive"];
+pub const KNOWN_MODIFIER_DISCIPLINES: &[&str] = &["aporia"];
 ```
 
 Parsing rules (`FromStr`):
@@ -445,7 +465,7 @@ Parsing rules (`FromStr`):
 `resolver::resolve` assembles a `ResolvedAgent` by stacking context layers in this order:
 
 ```
-0. Deconstructive preamble — injected first when the address carries the deconstructive modifier;
+0. Aporia preamble — injected first when the address carries the aporia modifier;
                               lists the agent's composed parts and instructs internal decomposition
                               before collapse (invisible to end users — runs in extended thinking)
 1. Org layer               — Farga: culture, standing rules, org-wide constraints
@@ -460,7 +480,7 @@ Parsing rules (`FromStr`):
 
 The extends chain is walked iteratively with cycle detection. If `CircularExtends` is detected, resolution fails immediately with a `FondamentError::CircularExtends` error rather than looping. The `default_model` is updated as each definition in the chain is visited — the last non-`None` value wins, so a role's `default_model` overrides its disciplines' baselines.
 
-During resolution, the resolver collects a `parts` list of named components (non-modifier disciplines, stance) for use in the deconstructive preamble. `thinking_budget` is computed as `(parts.len() * 3000).clamp(3000, 10000)` and returned on `ResolvedAgent`; the dispatch layer (Charradissa) is responsible for passing it to the Anthropic API as `thinking.budget_tokens`.
+During resolution, the resolver collects a `parts` list of named components (non-modifier disciplines, stance) for use in the aporia preamble. `thinking_budget` is computed as `(parts.len() * 3000).clamp(3000, 10000)` and returned on `ResolvedAgent`; the dispatch layer (Charradissa) is responsible for passing it to the Anthropic API as `thinking.budget_tokens`.
 
 The `ResolvedAgent` returned:
 
@@ -470,7 +490,7 @@ pub struct ResolvedAgent {
     pub tools: Vec<ToolDefinition>,     // always_on tools from all definitions in the chain
     pub jit_tools: Vec<ToolDefinition>, // jit tools from all definitions in the chain
     pub default_model: ModelId,         // final model after chain traversal
-    pub thinking_budget: Option<u32>,   // set when deconstructive modifier is active
+    pub thinking_budget: Option<u32>,   // set when aporia modifier is active
 }
 ```
 
@@ -586,12 +606,56 @@ prebuilt binary is republished).
 | `description-present` | Fail | `description` must be present and non-empty. |
 | `parts-present` | Fail | `parts` must be a non-empty list. |
 | `farga-part-project` | Fail | Each part with `source: farga` must carry a non-empty `project`. |
-| `deconstructive-field` | Warn | `deconstructive` is a spawn-time modifier, not a composition field — serde drops it silently, so it has no effect. Warned, not failed, so existing files are not blocked. |
+| `aporia-field` | Warn | `aporia` is a spawn-time modifier, not a composition field — serde drops it silently, so it has no effect. Warned, not failed, so existing files are not blocked. |
 
 `model` is optional. The id-path convention is derived from the nearest ancestor
 `definitions/` directory rather than hardcoded, so the rules apply unchanged to the
 Bosa Properties stack. Run it locally with `python scripts/lint_project_agents.py`
 and the test suite with `python -m unittest scripts/test_lint_project_agents.py`.
+
+### Intake-Output CI Lint (`scripts/lint_intake_output.py`)
+
+A second dependency-light gate (the `fondament-lint` job in `build-guilhem.yml`,
+**F-3**) that validates the YAML bundle produced by the `intake-architect` agent
+against the [canonical output format](docs/intake-output-format.md). The intent is
+to fail explicitly on malformed drafts *before* human review, with messages that
+name the offending field and the constraint it broke. It needs only PyYAML and no
+Rust toolchain, so it runs on every PR including forks.
+
+An intake bundle is a directory shaped like the canonical format —
+`domains/<slug>.yaml`, `roles/<role>.yaml`, `capabilities.yaml`, `README.md`. Each
+YAML file is dispatched by its `kind` field (`domain` / `role`); a file named
+`capabilities.yaml` is validated as a capabilities contract.
+
+| Rule | Kind | Description |
+|---|---|---|
+| `yaml-parse` | Fail | File must be valid YAML with a top-level mapping. |
+| `unknown-kind` | Fail | A YAML file that is neither `kind: domain`, `kind: role`, nor a `capabilities.yaml`. |
+| `domain-kind` / `domain-id-present` / `domain-id-convention` | Fail | Domain `kind` must be `domain`; `id` present and equal to `domain/<filename>`. |
+| `domain-repo-present` / `domain-context-present` | Fail | Domain `repo` and `context` must be present and non-empty. |
+| `role-kind` / `role-id-present` / `role-id-convention` | Fail | Role `kind` must be `role`; `id` present and equal to `fondament/<filename>`. |
+| `role-default-model-valid` | Fail | Role `default_model` must be one of the four known Claude model ids. |
+| `role-context-present` | Fail | Role `context` must be present and non-empty. |
+| `role-tools-present` / `role-tool-fields` / `role-jit-list` | Fail | `tools.always_on` must be a non-empty list; each tool needs `id`+`kind` (mcp→`server`+`tool`, native→`tool`); `tools.jit` must be a list. |
+| `capabilities-project-present` | Fail | `capabilities.yaml` must carry a non-empty `project`. |
+| `capabilities-exposes-*` / `capabilities-consumes-*` | Fail | Each `exposes` entry needs `id`/`kind`/`description` with a known capability kind; each `consumes` entry needs `project`/`capability`. |
+| `capabilities-required-bool` | Warn | `consumes` `required` should be a boolean. |
+
+The valid bundle under `examples/intake/nervi/` is linted green in CI; the
+deliberately malformed bundle under `examples/intake-invalid/` is asserted to fail
+(its field-level messages appear in the build log). The id conventions are derived
+from the filename rather than hardcoded, so the rules apply unchanged to the Bosa
+Properties stack. Run it locally with:
+
+```sh
+python scripts/lint_intake_output.py generated/<project-slug>   # validate a draft bundle
+python scripts/lint_intake_output.py examples/intake/nervi      # validate the worked example
+python -m unittest scripts/test_lint_intake_output.py           # run the acceptance tests
+```
+
+With no argument the script defaults to the `generated/` intake staging directory;
+a missing directory reports zero files checked and exits 0, keeping the gate quiet
+until intake output lands.
 
 ### Sweep Lint (`lint::sweep`)
 
@@ -751,7 +815,7 @@ let agent: ResolvedAgent = watched.fondament.resolve(&address).await?;
 // Use agent.system_prompt, agent.default_model, agent.tools, agent.jit_tools
 // to configure the outgoing Claude API call.
 // If agent.thinking_budget is Some(n), pass thinking: { type: "enabled", budget_tokens: n }
-// to the Anthropic API (deconstructive modifier is active).
+// to the Anthropic API (aporia modifier is active).
 ```
 
 The `WatchedFondament` must be kept alive for the duration of the daemon. The `WatchHandle` inside it owns the file-system watcher thread; dropping it stops hot-reload.
@@ -792,7 +856,7 @@ Tests live in `fondament-core/tests/`. The `tempfile` crate is used to create is
 | `address_tests.rs` | `CompositionAddress` parsing and `Display` round-trips for both `Role` and `Composed` variants; modifier-only addresses; modifier+stance combined; error cases (empty path, double `+`, two non-modifier stances). |
 | `tree_tests.rs` | `DefinitionTree::load` scans nested directories; `get` returns the correct definition; unknown IDs return `None`; `modifier: true` parses correctly; disciplines without the field default to `modifier: false`. |
 | `lint_tests.rs` | A valid definition passes lint with no failures; an invalid `default_model` produces a `Fail` result. |
-| `resolver_tests.rs` | `Role` and `Composed` addresses resolve to correctly assembled system prompts; stance context included for both address forms; deconstructive modifier injects preamble before domain content, sets `thinking_budget`, and scales budget with part count; no preamble or budget without the modifier. Uses a `MockFarga` that returns fixed content. |
+| `resolver_tests.rs` | `Role` and `Composed` addresses resolve to correctly assembled system prompts; stance context included for both address forms; aporia modifier injects preamble before domain content, sets `thinking_budget`, and scales budget with part count; no preamble or budget without the modifier. Uses a `MockFarga` that returns fixed content. |
 
 Run all tests:
 
@@ -853,8 +917,110 @@ cargo test --test address_tests
 curl http://fondament:7800/health
 curl http://fondament:7800/component-agents
 curl http://fondament:7800/resolve/fondament/farga-agent
-curl http://fondament:7800/resolve/fondament/app-architect+deconstructive
+curl http://fondament:7800/resolve/fondament/app-architect+aporia
 ```
+
+---
+
+## Attribution
+
+Some role and skill definitions in `definitions/fondament/` draw on patterns, structures,
+and externally published skills from the following open sources. Where a definition file
+uses an external skill or was shaped by an external pattern, it carries an attribution
+comment at the top of the YAML file.
+
+### VoltAgent — awesome-agent-skills
+
+**Repository**: https://github.com/VoltAgent/awesome-agent-skills  
+**License**: MIT  
+**What we use**: External Claude Code skills referenced in `skills:` lists on role
+definitions. These skills are invokable by Claude Code agents at runtime; listing them
+in a role's `skills:` array is both a capability grant and a qualification signal.
+
+| Skill ID | Used in | Credit |
+|---|---|---|
+| `hashicorp/terraform-style-guide` | `infra-engineer` | HashiCorp |
+| `hashicorp/terraform-test` | `infra-engineer` | HashiCorp |
+| `hashicorp/terraform-stacks` | `infra-engineer` | HashiCorp |
+| `hashicorp/refactor-module` | `infra-engineer` | HashiCorp |
+| `hashicorp/run-acceptance-tests` | `infra-engineer` | HashiCorp |
+| `trailofbits/static-analysis` | `security-analyst` | Trail of Bits |
+| `trailofbits/insecure-defaults` | `security-analyst` | Trail of Bits |
+| `trailofbits/semgrep-rule-creator` | `security-analyst` | Trail of Bits |
+| `trailofbits/audit-context-building` | `security-analyst` | Trail of Bits |
+| `trailofbits/property-based-testing` | `security-analyst` | Trail of Bits |
+| `trailofbits/spec-to-code-compliance` | `security-analyst` | Trail of Bits |
+| `microsoft/cloud-solution-architect` | `azure-architect` | Microsoft |
+| `getsentry/sentry-code-review` | `code-reviewer` | Sentry |
+| `getsentry/sentry-pr-code-review` | `code-reviewer` | Sentry |
+| `anthropics/docx` | `technical-writer` | Anthropic |
+| `anthropics/pdf` | `technical-writer` | Anthropic |
+| `anthropics/canvas-design` | `technical-writer` | Anthropic |
+| `googleworkspace/gws-docs` | `technical-writer` | Google |
+| `googleworkspace/gws-drive` | `technical-writer` | Google |
+| `openai/notion-research-documentation` | `technical-writer`, `librarian` | OpenAI |
+
+### agency-agents (msitarzewski)
+
+**Repository**: https://github.com/msitarzewski/agency-agents  
+**License**: MIT  
+**What we use**: Role taxonomy and agent structure patterns. The 232-agent roster across
+16 divisions informed our scope decisions (which roles to define, which to deliberately
+collapse, which to defer) and the internal structure of role `context:` fields (Identity +
+Mission + Critical Rules + Deliverables + Workflow).
+
+Definitions informed by agency-agents patterns:
+- `cloud-architect` — Cloud Security Architect and Software Architect structures
+- `aws-architect` — Cloud Security Architect IAM and blast-radius weighting
+- `azure-architect` — Cloud Security Architect review format
+- `gcp-architect` — Cloud Security Architect IAM and posture sections
+- `security-analyst` — Application Security Engineer and Threat Detection Engineer scope definitions; deliberate collapse from 10 security roles to one with documented split path
+- `infra-engineer` — DevOps Automator and SRE operational mindset sections
+- `technical-writer` — Technical Writer and Document Generator role structures (output format hierarchy, synthesis sections)
+- `business-analyst` — Feedback Synthesizer and Product Manager role structures
+- `developer` — Senior Backend Engineer and Senior Fullstack role structures
+- `qa-engineer` — Senior QA and Evidence Collector role structures
+
+### alirezarezvani — claude-skills
+
+**Repository**: https://github.com/alirezarezvani/claude-skills  
+**License**: MIT — Copyright Alireza Rezvani 2025  
+**What we use**: 345+ production-ready Claude Code skills across 17 domains. Skill IDs are plain kebab-case (no org prefix). Install via `claude install engineering-skills` or `claude install engineering-advanced-skills` for the relevant bundles.
+
+| Skill ID | Used in | What it covers |
+|---|---|---|
+| `aws-solution-architect` | `aws-architect` | Serverless patterns, CloudFormation/CDK/Terraform, cost |
+| `azure-cloud-architect` | `azure-architect` | AKS, Bicep/ARM, Azure DevOps, compliance |
+| `gcp-cloud-architect` | `gcp-architect` | Cloud Run, GKE, BigQuery, Vertex AI, Terraform |
+| `cloud-security` | `cloud-architect` (base) | CSPM: IAM escalation paths, S3 exposure, security group rules, IaC misconfiguration |
+| `senior-devops` | `infra-engineer` | CI/CD pipeline generation, Terraform scaffolding, Kubernetes manifests |
+| `observability-designer` | `infra-engineer` | Dashboards, alert-noise reduction, three pillars, SLI scaffold |
+| `slo-architect` | `infra-engineer` | Full SLO/SLI/error-budget, burn-rate thresholds (Google SRE methodology) |
+| `chaos-engineering` | `infra-engineer` | Experiment design, blast-radius calculation, abort criteria, game days |
+| `kubernetes-operator` | `infra-engineer` | Operator patterns, CRD design, controller reconciliation |
+| `ci-cd-pipeline-builder` | `infra-engineer` | Pipeline scaffolding, deployment strategies, artifact management |
+| `senior-backend` | `developer` | REST API design, OpenAPI scaffolding, DB migration, load testing, security basics |
+| `spec-driven-workflow` | `developer` | Spec-first delivery: requirements → 9-section spec → test stubs → implementation |
+| `tdd-guide` | `developer`, `qa-engineer` | Red-green-refactor cycles, Jest/Pytest/JUnit/Vitest/Mocha; apply methodology to Rust |
+| `adversarial-reviewer` | `developer`, `code-reviewer` | Three hostile personas (Saboteur/New Hire/Security Auditor); BLOCK/CONCERNS/CLEAN verdict |
+| `senior-qa` | `qa-engineer` | Test generation, coverage analysis, Playwright E2E scaffolding (React/Next.js focused) |
+| `api-test-suite-builder` | `qa-engineer` | API test suites: auth scenarios, input validation, HTTP errors, rate limiting |
+| `performance-profiler` | `qa-engineer` | CPU/memory profiling, load testing (k6/Artillery), before/after baselines |
+| `product-manager-toolkit` | `business-analyst` | RICE prioritization, customer interview analysis, PRD templates, MoSCoW/Kano/OST |
+| `product-discovery` | `business-analyst` | OST facilitation, assumption mapping, problem/solution validation, discovery sprints |
+| `process-mapper` | `business-analyst` | Swim-lane process maps, bottleneck ranking (ToC), cycle-time analysis (P50/P90) |
+| `knowledge-ops` | `technical-writer`, `librarian` | KB health analysis: orphan pages, staleness scoring, ownership gaps, glossary drift |
+| `runbook-generator` | `technical-writer` | Operational runbook scaffolding: deployment, incident response, maintenance, rollback |
+
+Note: `cloud-security` covers cloud posture (control-plane level: IAM, storage, network, IaC configs), not code-level analysis. It lives on `cloud-architect` rather than `security-analyst` — those are different scopes.
+
+### kyrolabs — awesome-agents
+
+**Repository**: https://github.com/kyrolabs/awesome-agents  
+**License**: no license file — used as a reference survey only, no code or content copied  
+**What we use**: Framework and implementation survey. Validated our agent primitive taxonomy
+against the industry (MetaGPT's Architect+Engineer+QA decomposition, Stakpak for infra-engineer,
+SWE-Agent for story-execution analogue, Cordum for Gardian's governance scope).
 
 ---
 
