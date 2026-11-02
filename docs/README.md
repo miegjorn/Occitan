@@ -6,13 +6,7 @@ Documentation harvested from component repositories and sanitized for public con
 
 | Component | Description |
 |---|---|
-| [Gardian](components/gardian.md) | Secret gateway — token validation and credential resolution |
-| [Fondament](components/fondament.md) | Foundation layer — base types and shared interfaces |
-| [Farga](components/farga.md) | Durable memory layer — signals, artifacts, and project context |
-| [Amassada](components/amassada.md) | Context assembler — aggregates Farga signals for agent consumption |
-| [Charradissa](components/charradissa.md) | Matrix ↔ agent bridge — routes room messages to component agents |
-| [Cor](components/cor.md) | Core services — shared runtime primitives |
-| [Caissa](components/caissa.md) | Deployment layer — Helm charts and ArgoCD configuration |
+
 
 ---
 
